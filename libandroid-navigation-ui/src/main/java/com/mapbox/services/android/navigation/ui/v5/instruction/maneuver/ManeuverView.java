@@ -21,7 +21,6 @@ import static com.mapbox.services.android.navigation.v5.navigation.NavigationCon
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationConstants.STEP_MANEUVER_MODIFIER_LEFT;
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationConstants.STEP_MANEUVER_MODIFIER_SHARP_LEFT;
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationConstants.STEP_MANEUVER_MODIFIER_SLIGHT_LEFT;
-
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationConstants.STEP_MANEUVER_MODIFIER_UTURN;
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationConstants.STEP_MANEUVER_TYPE_ARRIVE;
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationConstants.STEP_MANEUVER_TYPE_EXIT_ROTARY;
@@ -40,6 +39,7 @@ import static com.mapbox.services.android.navigation.v5.navigation.NavigationCon
 public class ManeuverView extends View {
 
   private static final Map<Pair<String, String>, ManeuverViewUpdate> MANEUVER_VIEW_UPDATE_MAP = new ManeuverViewMap();
+  private static final String DRIVING_SIDE_LEFT = "left";
   private static final Set<String> SHOULD_FLIP_MODIFIERS = new HashSet<String>() {
     {
       add(STEP_MANEUVER_MODIFIER_SLIGHT_LEFT);
@@ -74,6 +74,7 @@ public class ManeuverView extends View {
   private int primaryColor;
   private int secondaryColor;
   private float roundaboutAngle;
+  private String drivingSide = "";
   private PointF size;
 
   public ManeuverView(Context context) {
@@ -95,7 +96,7 @@ public class ManeuverView extends View {
     initManeuverColor();
   }
 
-  public void setManeuverTypeAndModifier(String maneuverType, String maneuverModifier) {
+  public void updateManeuverTypeAndModifier(String maneuverType, String maneuverModifier) {
     if (isNewTypeOrModifier(maneuverType, maneuverModifier)) {
       this.maneuverType = maneuverType;
       this.maneuverModifier = maneuverModifier;
@@ -108,10 +109,16 @@ public class ManeuverView extends View {
     }
   }
 
-  public void setRoundaboutAngle(float roundaboutAngle) {
+  public void updateRoundaboutAngle(float roundaboutAngle) {
     if (ROUNDABOUT_MANEUVER_TYPES.contains(maneuverType) && this.roundaboutAngle != roundaboutAngle) {
       this.roundaboutAngle = roundaboutAngle;
       invalidate();
+    }
+  }
+
+  public void updateDrivingSide(String drivingSide) {
+    if (!this.drivingSide.equalsIgnoreCase(drivingSide)) {
+      this.drivingSide = drivingSide;
     }
   }
 
@@ -141,6 +148,7 @@ public class ManeuverView extends View {
       maneuverViewUpdate.updateManeuverView(canvas, primaryColor, secondaryColor, size, roundaboutAngle);
     }
     boolean flip = SHOULD_FLIP_MODIFIERS.contains(maneuverModifier);
+    flip = checkDrivingSide(flip);
     setScaleX(flip ? -1 : 1);
   }
 
@@ -171,5 +179,13 @@ public class ManeuverView extends View {
       maneuverType = null;
     }
     return maneuverType;
+  }
+
+  private boolean checkDrivingSide(boolean flip) {
+    if (drivingSide.contentEquals(DRIVING_SIDE_LEFT)
+      && ROUNDABOUT_MANEUVER_TYPES.contains(maneuverType)) {
+      flip = !flip;
+    }
+    return flip;
   }
 }

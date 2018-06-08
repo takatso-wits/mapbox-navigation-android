@@ -20,12 +20,14 @@ public class InstructionModel {
   private RouteUtils routeUtils;
   private String language;
   private String unitType;
+  private String drivingSide;
 
   public InstructionModel(Context context, RouteProgress progress, String language, String unitType) {
     this.progress = progress;
     this.language = language;
     this.unitType = unitType;
     routeUtils = new RouteUtils();
+    drivingSide = progress.currentLegProgress().currentStep().drivingSide();
     buildInstructionModel(context, progress);
   }
 
@@ -56,6 +58,10 @@ public class InstructionModel {
 
   String getManeuverModifier() {
     return stepResources.getManeuverViewModifier();
+  }
+
+  String retrieveDrivingSide() {
+    return drivingSide;
   }
 
   RouteProgress getProgress() {

@@ -751,7 +751,7 @@ public class InstructionView extends RelativeLayout implements FeedbackBottomShe
     if (shouldShowThenStep(model)) {
       String thenStepManeuverType = model.getStepResources().getThenStepManeuverType();
       String thenStepManeuverModifier = model.getStepResources().getThenStepManeuverModifier();
-      thenManeuverView.setManeuverTypeAndModifier(thenStepManeuverType, thenStepManeuverModifier);
+      thenManeuverView.updateManeuverTypeAndModifier(thenStepManeuverType, thenStepManeuverModifier);
       thenStepText.setText(model.getThenBannerText().text());
       showThenStepLayout();
     } else {
@@ -874,9 +874,10 @@ public class InstructionView extends RelativeLayout implements FeedbackBottomShe
   private void updateManeuverView(InstructionModel model) {
     String maneuverViewType = model.getManeuverType();
     String maneuverViewModifier = model.getManeuverModifier();
-    upcomingManeuverView.setManeuverTypeAndModifier(maneuverViewType, maneuverViewModifier);
+    upcomingManeuverView.updateManeuverTypeAndModifier(maneuverViewType, maneuverViewModifier);
+    upcomingManeuverView.updateDrivingSide(model.retrieveDrivingSide());
     if (model.getRoundaboutAngle() != null) {
-      upcomingManeuverView.setRoundaboutAngle(model.getRoundaboutAngle());
+      upcomingManeuverView.updateRoundaboutAngle(model.getRoundaboutAngle());
     }
   }
 

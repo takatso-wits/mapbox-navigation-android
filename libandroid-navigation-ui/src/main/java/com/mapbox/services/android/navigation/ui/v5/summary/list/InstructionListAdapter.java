@@ -130,7 +130,7 @@ public class InstructionListAdapter extends RecyclerView.Adapter<InstructionView
     }
     String maneuverType = maneuverStep.maneuver().type();
     String maneuverModifier = maneuverStep.maneuver().modifier();
-    holder.maneuverView.setManeuverTypeAndModifier(maneuverType, maneuverModifier);
+    holder.maneuverView.updateManeuverTypeAndModifier(maneuverType, maneuverModifier);
   }
 
   private boolean shouldDistanceUtilsBeInitialized(String language,
