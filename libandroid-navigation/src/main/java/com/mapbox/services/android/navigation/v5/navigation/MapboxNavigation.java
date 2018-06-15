@@ -4,6 +4,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.res.AssetManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
@@ -13,6 +14,7 @@ import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.location.LocationEnginePriority;
 import com.mapbox.android.core.location.LocationEngineProvider;
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
+import com.mapbox.navigator.Navigator;
 import com.mapbox.services.android.navigation.v5.milestone.BannerInstructionMilestone;
 import com.mapbox.services.android.navigation.v5.milestone.Milestone;
 import com.mapbox.services.android.navigation.v5.milestone.MilestoneEventListener;
@@ -31,6 +33,8 @@ import com.mapbox.services.android.navigation.v5.snap.Snap;
 import com.mapbox.services.android.navigation.v5.snap.SnapToRoute;
 import com.mapbox.services.android.navigation.v5.utils.ValidationUtils;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -66,6 +70,11 @@ public class MapboxNavigation implements ServiceConnection {
   private boolean isBound;
   private NavigationTelemetry navigationTelemetry = null;
   private Camera cameraEngine;
+  private Navigator navigator;
+
+  static {
+    System.loadLibrary("navigator-android");
+  }
 
   /**
    * Constructs a new instance of this class using the default options. This should be used over
@@ -146,6 +155,7 @@ public class MapboxNavigation implements ServiceConnection {
     initializeDefaultLocationEngine();
     initializeDefaultCameraEngine();
     initializeTelemetry();
+    initializeNavigator();
 
     // Create and add default milestones if enabled.
     milestones = new HashSet<>();
@@ -162,6 +172,28 @@ public class MapboxNavigation implements ServiceConnection {
     if (options().enableFasterRouteDetection()) {
       fasterRouteEngine = new FasterRouteDetector();
     }
+  }
+
+  private void initializeNavigator() {
+    // NAV-NATIVE
+    navigator = new Navigator();
+    navigator.setDirections(loadJSONFromAssets(context.getAssets()));
+  }
+
+  private String loadJSONFromAssets(AssetManager manager) {
+    String json = null;
+    try {
+      InputStream is = manager.open("directions_v5_precision_6.json");
+      int size = is.available();
+      byte[] buffer = new byte[size];
+      is.read(buffer);
+      is.close();
+      json = new String(buffer, "UTF-8");
+    } catch (IOException ex) {
+      ex.printStackTrace();
+      return null;
+    }
+    return json;
   }
 
   private void initializeTelemetry() {
@@ -795,6 +827,10 @@ public class MapboxNavigation implements ServiceConnection {
 
   DirectionsRoute getRoute() {
     return directionsRoute;
+  }
+
+  Navigator getNavigator() {
+    return navigator;
   }
 
   List<Milestone> getMilestones() {

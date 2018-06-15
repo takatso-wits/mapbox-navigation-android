@@ -2,6 +2,7 @@ package com.mapbox.services.android.navigation.testapp.activity.navigationui;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.AssetManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -17,9 +18,12 @@ import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.location.LocationEngineListener;
 import com.mapbox.android.core.location.LocationEngineProvider;
+import com.mapbox.api.directions.v5.DirectionsAdapterFactory;
 import com.mapbox.api.directions.v5.DirectionsCriteria;
 import com.mapbox.api.directions.v5.models.DirectionsResponse;
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
@@ -47,6 +51,8 @@ import com.mapbox.services.android.navigation.ui.v5.route.OnRouteSelectionChange
 import com.mapbox.services.android.navigation.v5.navigation.NavigationRoute;
 import com.mapbox.services.android.navigation.v5.utils.LocaleUtils;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -276,7 +282,12 @@ public class NavigationViewActivity extends AppCompatActivity implements OnMapRe
         public void onResponse(Call<DirectionsResponse> call, Response<DirectionsResponse> response) {
           if (validRouteResponse(response)) {
             hideLoading();
-            route = response.body().routes().get(0);
+
+            Gson gson = new GsonBuilder().registerTypeAdapterFactory(DirectionsAdapterFactory.create()).create();
+            String newJsonResponse = loadJSONFromAssets(getAssets());
+            DirectionsResponse jsonResponse = gson.fromJson(newJsonResponse, DirectionsResponse.class);
+            route = jsonResponse.routes().get(0);
+            route = route.toBuilder().routeOptions(response.body().routes().get(0).routeOptions()).build();
             if (route.distance() > 25d) {
               launchRouteBtn.setEnabled(true);
               mapRoute.addRoutes(response.body().routes());
@@ -288,6 +299,29 @@ public class NavigationViewActivity extends AppCompatActivity implements OnMapRe
         }
       });
     loading.setVisibility(View.VISIBLE);
+  }
+
+  public String loadJSONFromAssets(AssetManager manager) {
+    String json = null;
+    try {
+      InputStream is = manager.open("directions_v5_precision_6.json");
+      int size = is.available();
+      byte[] buffer = new byte[size];
+      is.read(buffer);
+      is.close();
+      json = new String(buffer, "UTF-8");
+    } catch (IOException ex) {
+      ex.printStackTrace();
+      return null;
+    }
+    return json;
+  }
+
+  private void saveRouteJson(String routeJson) {
+    SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+    SharedPreferences.Editor editor = preferences.edit();
+    editor.putString("route_json", routeJson);
+    editor.apply();
   }
 
   private void setFieldsFromSharedPreferences(NavigationRoute.Builder builder) {

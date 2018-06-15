@@ -6,6 +6,10 @@ import android.os.HandlerThread;
 import android.os.Message;
 import android.os.Process;
 
+import com.mapbox.navigator.FixLocation;
+import com.mapbox.navigator.NavigationStatus;
+import com.mapbox.navigator.Navigator;
+import com.mapbox.navigator.RouteState;
 import com.mapbox.services.android.navigation.v5.milestone.Milestone;
 import com.mapbox.services.android.navigation.v5.routeprogress.RouteProgress;
 
@@ -13,7 +17,6 @@ import java.util.List;
 
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationHelper.buildSnappedLocation;
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationHelper.checkMilestones;
-import static com.mapbox.services.android.navigation.v5.navigation.NavigationHelper.isUserOffRoute;
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationHelper.shouldCheckFasterRoute;
 
 /**
@@ -28,6 +31,7 @@ class NavigationEngine extends HandlerThread implements Handler.Callback {
   private Handler workerHandler;
   private Callback callback;
   private NavigationRouteProcessor routeProcessor;
+  private Navigator navigator;
 
   NavigationEngine(Handler responseHandler, Callback callback) {
     super(THREAD_NAME, Process.THREAD_PRIORITY_BACKGROUND);
@@ -63,13 +67,16 @@ class NavigationEngine extends HandlerThread implements Handler.Callback {
   private void handleRequest(final NewLocationModel newLocationModel) {
 
     final MapboxNavigation mapboxNavigation = newLocationModel.mapboxNavigation();
+    if (navigator == null) {
+      navigator = mapboxNavigation.getNavigator();
+    }
     boolean snapToRouteEnabled = mapboxNavigation.options().snapToRoute();
 
     final Location rawLocation = newLocationModel.location();
 
     RouteProgress routeProgress = routeProcessor.buildNewRouteProgress(mapboxNavigation, rawLocation);
 
-    final boolean userOffRoute = isUserOffRoute(newLocationModel, routeProgress, routeProcessor);
+    final boolean userOffRoute = isUserOffRoute(rawLocation);
 
     routeProcessor.checkIncreaseIndex(mapboxNavigation);
 
@@ -96,6 +103,35 @@ class NavigationEngine extends HandlerThread implements Handler.Callback {
       }
     });
   }
+
+  private boolean isUserOffRoute(Location rawLocation) {
+    FixLocation fixLocation = buildFixLocationFrom(rawLocation);
+    NavigationStatus navigationStatus = navigator.onLocationChanged(fixLocation);
+    return navigationStatus.getRouteState() == RouteState.OFFROUTE;
+  }
+
+  private FixLocation buildFixLocationFrom(Location rawLocation) {
+    float latitude = (float) rawLocation.getLatitude();
+    float longitude = (float) rawLocation.getLongitude();
+    Long time = rawLocation.getTime();
+    Float speed = rawLocation.getSpeed();
+    Float bearing = rawLocation.getBearing();
+    Float altitude = (float) rawLocation.getAltitude();
+    Float horizontalAccuracy = rawLocation.getAccuracy();
+    String provider = rawLocation.getProvider();
+
+    return new FixLocation(
+      latitude,
+      longitude,
+      time,
+      speed,
+      bearing,
+      altitude,
+      horizontalAccuracy,
+      provider
+    );
+  }
+
 
   /**
    * Callbacks for posting back to the Navigation Service once the thread finishes calculations.
