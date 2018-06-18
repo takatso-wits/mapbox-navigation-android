@@ -264,9 +264,11 @@ public class NavigationViewActivity extends AppCompatActivity implements OnMapRe
   }
 
   private void fetchRoute() {
+    Point origin = Point.fromLngLat(-122.403561,37.777689);
+    Point destination = Point.fromLngLat(-122.405786,37.770369);
     NavigationRoute.Builder builder = NavigationRoute.builder(this)
       .accessToken(Mapbox.getAccessToken())
-      .origin(currentLocation)
+      .origin(origin)
       .destination(destination)
       .alternatives(true);
     setFieldsFromSharedPreferences(builder);

@@ -62,7 +62,7 @@ public class TurnLaneView extends View {
     super.onDraw(canvas);
 
     if (isInEditMode()) {
-      LanesStyleKit.drawLaneStraight(canvas, primaryColor, size);
+      LanesStyleKit.drawLaneStraight(canvas, primaryColor);
       return;
     }
 
@@ -72,28 +72,28 @@ public class TurnLaneView extends View {
 
     switch (drawData.getDrawMethod()) {
       case DRAW_LANE_STRAIGHT:
-        LanesStyleKit.drawLaneStraight(canvas, primaryColor, size);
+        LanesStyleKit.drawLaneStraight(canvas, primaryColor);
         break;
       case DRAW_LANE_UTURN:
-        LanesStyleKit.drawLaneUturn(canvas, primaryColor, size);
+        LanesStyleKit.drawLaneUturn(canvas, primaryColor);
         break;
       case DRAW_LANE_RIGHT:
-        LanesStyleKit.drawLaneRight(canvas, primaryColor, size);
+        LanesStyleKit.drawLaneRight(canvas, primaryColor);
         break;
       case DRAW_LANE_SLIGHT_RIGHT:
-        LanesStyleKit.drawLaneSlightRight(canvas, primaryColor, size);
+        LanesStyleKit.drawLaneSlightRight(canvas, primaryColor, 1.0f);
         break;
       case DRAW_LANE_RIGHT_ONLY:
-        LanesStyleKit.drawLaneRightOnly(canvas, primaryColor, secondaryColor, size);
+        LanesStyleKit.drawLaneRightOnly(canvas, primaryColor, secondaryColor);
         break;
       case DRAW_LANE_STRAIGHT_RIGHT:
-        LanesStyleKit.drawLaneStraightRight(canvas, primaryColor, size);
+        LanesStyleKit.drawLaneStraightRight(canvas, primaryColor);
         break;
       case DRAW_LANE_STRAIGHT_ONLY:
-        LanesStyleKit.drawLaneStraightOnly(canvas, primaryColor, secondaryColor, size);
+        LanesStyleKit.drawLaneStraightOnly(canvas, primaryColor, secondaryColor);
         break;
       default:
-        LanesStyleKit.drawLaneStraight(canvas, primaryColor, size);
+        LanesStyleKit.drawLaneStraight(canvas, primaryColor);
         break;
     }
 
