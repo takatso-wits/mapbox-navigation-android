@@ -4,9 +4,11 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.content.res.AssetManager;
 import android.os.Build;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
@@ -14,6 +16,7 @@ import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.location.LocationEnginePriority;
 import com.mapbox.android.core.location.LocationEngineProvider;
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
+import com.mapbox.navigator.NavigationStatus;
 import com.mapbox.navigator.Navigator;
 import com.mapbox.services.android.navigation.v5.milestone.BannerInstructionMilestone;
 import com.mapbox.services.android.navigation.v5.milestone.Milestone;
@@ -177,7 +180,13 @@ public class MapboxNavigation implements ServiceConnection {
   private void initializeNavigator() {
     // NAV-NATIVE
     navigator = new Navigator();
-    navigator.setDirections(loadJSONFromAssets(context.getAssets()));
+    NavigationStatus status = navigator.setDirections(retrieveRouteJson());
+  }
+
+  private String retrieveRouteJson() {
+    SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+    String routeJson = preferences.getString("json_route", "error");
+    return routeJson;
   }
 
   private String loadJSONFromAssets(AssetManager manager) {

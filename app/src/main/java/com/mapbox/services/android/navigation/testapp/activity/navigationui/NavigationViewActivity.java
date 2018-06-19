@@ -18,12 +18,9 @@ import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.location.LocationEngineListener;
 import com.mapbox.android.core.location.LocationEngineProvider;
-import com.mapbox.api.directions.v5.DirectionsAdapterFactory;
 import com.mapbox.api.directions.v5.DirectionsCriteria;
 import com.mapbox.api.directions.v5.models.DirectionsResponse;
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
@@ -59,6 +56,9 @@ import java.util.List;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import retrofit2.Call;
 import retrofit2.Response;
 
@@ -281,13 +281,14 @@ public class NavigationViewActivity extends AppCompatActivity implements OnMapRe
         @Override
         public void onResponse(Call<DirectionsResponse> call, Response<DirectionsResponse> response) {
           if (validRouteResponse(response)) {
+//            Gson okGson = new GsonBuilder().registerTypeAdapterFactory(DirectionsAdapterFactory.create()).create();
+            DirectionsResponse directions = response.body();
+//            String jsonInString = okGson.toJson(directions);
+//            saveRouteJson(jsonInString);
+            run(call);
             hideLoading();
 
-            Gson gson = new GsonBuilder().registerTypeAdapterFactory(DirectionsAdapterFactory.create()).create();
-            String newJsonResponse = loadJSONFromAssets(getAssets());
-            DirectionsResponse jsonResponse = gson.fromJson(newJsonResponse, DirectionsResponse.class);
-            route = jsonResponse.routes().get(0);
-            route = route.toBuilder().routeOptions(response.body().routes().get(0).routeOptions()).build();
+            route = directions.routes().get(0);
             if (route.distance() > 25d) {
               launchRouteBtn.setEnabled(true);
               mapRoute.addRoutes(response.body().routes());
@@ -299,6 +300,26 @@ public class NavigationViewActivity extends AppCompatActivity implements OnMapRe
         }
       });
     loading.setVisibility(View.VISIBLE);
+  }
+
+  private void run(Call<DirectionsResponse> call) {
+    final OkHttpClient client = new OkHttpClient();
+    Request request = new Request.Builder()
+      .url(call.request().url())
+      .build();
+
+    client.newCall(request).enqueue(new Callback() {
+      @Override
+      public void onFailure(okhttp3.Call call, IOException e) {
+
+      }
+
+      @Override
+      public void onResponse(okhttp3.Call call, okhttp3.Response response) throws IOException {
+        String jsonBody = response.body().string();
+        saveRouteJson(jsonBody);
+      }
+    });
   }
 
   public String loadJSONFromAssets(AssetManager manager) {
@@ -320,7 +341,7 @@ public class NavigationViewActivity extends AppCompatActivity implements OnMapRe
   private void saveRouteJson(String routeJson) {
     SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
     SharedPreferences.Editor editor = preferences.edit();
-    editor.putString("route_json", routeJson);
+    editor.putString("json_route", routeJson);
     editor.apply();
   }
 
