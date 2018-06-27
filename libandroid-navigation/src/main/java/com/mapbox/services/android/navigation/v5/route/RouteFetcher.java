@@ -7,12 +7,12 @@ import android.support.annotation.Nullable;
 
 import com.mapbox.api.directions.v5.models.DirectionsResponse;
 import com.mapbox.api.directions.v5.models.RouteOptions;
-import com.mapbox.core.utils.TextUtils;
 import com.mapbox.geojson.Point;
 import com.mapbox.services.android.navigation.v5.navigation.NavigationRoute;
 import com.mapbox.services.android.navigation.v5.routeprogress.RouteProgress;
 import com.mapbox.services.android.navigation.v5.utils.RouteUtils;
 
+import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -29,14 +29,16 @@ public class RouteFetcher {
 
   private static final double BEARING_TOLERANCE = 90d;
 
-  private List<RouteListener> routeListeners = new CopyOnWriteArrayList<>();
+  private final List<RouteListener> routeListeners = new CopyOnWriteArrayList<>();
+  private final String accessToken;
+  private final WeakReference<Context> contextWeakReference;
 
-  private String accessToken;
-  private String routeProfile;
   private RouteProgress routeProgress;
   private RouteUtils routeUtils;
 
-  public RouteFetcher() {
+  public RouteFetcher(Context context, String accessToken) {
+    this.accessToken = accessToken;
+    contextWeakReference = new WeakReference<>(context);
     routeUtils = new RouteUtils();
   }
 
@@ -50,16 +52,6 @@ public class RouteFetcher {
     routeListeners.remove(listener);
   }
 
-  public void updateAccessToken(String accessToken) {
-    this.accessToken = accessToken;
-  }
-
-  public void updateRouteProfile(String routeProfile) {
-    if (routeUtils.isValidRouteProfile(routeProfile)) {
-      this.routeProfile = routeProfile;
-    }
-  }
-
   /**
    * Calculates a new {@link com.mapbox.api.directions.v5.models.DirectionsRoute} given
    * the current {@link Location} and {@link RouteProgress} along the route.
@@ -71,33 +63,24 @@ public class RouteFetcher {
    * @param routeProgress for remaining waypoints along the route
    * @since 0.13.0
    */
-  public void findRouteFromRouteProgress(Context context, Location location, RouteProgress routeProgress) {
-    if (isValidProgress(location, routeProgress)) {
+  public void findRouteFromRouteProgress(Location location, RouteProgress routeProgress) {
+    if (isInvalidProgress(location, routeProgress)) {
       return;
     }
     this.routeProgress = routeProgress;
-    NavigationRoute.Builder builder = buildRouteRequest(context, location, routeProgress);
+    NavigationRoute.Builder builder = buildRequestFromLocation(location, routeProgress);
     executeRouteCall(builder);
   }
 
-  private boolean isValidProgress(Location location, RouteProgress routeProgress) {
-    return location == null || routeProgress == null;
-  }
-
-  private NavigationRoute.Builder buildRouteRequest(Context context, Location location, RouteProgress routeProgress) {
+  @Nullable
+  private NavigationRoute.Builder buildRequestFromLocation(Location location, RouteProgress progress) {
+    if (contextWeakReference.get() == null) {
+      return null;
+    }
     Point origin = Point.fromLngLat(location.getLongitude(), location.getLatitude());
     Double bearing = location.hasBearing() ? Float.valueOf(location.getBearing()).doubleValue() : null;
-    return buildRouteRequestFromCurrentLocation(
-      context, origin, bearing, routeProgress, routeProfile
-    );
-  }
-
-  @Nullable
-  private NavigationRoute.Builder buildRouteRequestFromCurrentLocation(Context context, Point origin,
-                                                                       Double bearing, RouteProgress progress,
-                                                                       @Nullable String routeProfile) {
     RouteOptions options = progress.directionsRoute().routeOptions();
-    NavigationRoute.Builder builder = NavigationRoute.builder(context)
+    NavigationRoute.Builder builder = NavigationRoute.builder(contextWeakReference.get())
       .origin(origin, bearing, BEARING_TOLERANCE)
       .routeOptions(options);
 
@@ -106,16 +89,9 @@ public class RouteFetcher {
       Timber.e("An error occurred fetching a new route");
       return null;
     }
-    addRouteProfile(routeProfile, builder);
     addDestination(remainingWaypoints, builder);
     addWaypoints(remainingWaypoints, builder);
     return builder;
-  }
-
-  private void addRouteProfile(String routeProfile, NavigationRoute.Builder builder) {
-    if (!TextUtils.isEmpty(routeProfile)) {
-      builder.profile(routeProfile);
-    }
   }
 
   private void addDestination(List<Point> remainingWaypoints, NavigationRoute.Builder builder) {
@@ -142,6 +118,10 @@ public class RouteFetcher {
       builder.accessToken(accessToken);
       builder.build().getRoute(directionsResponseCallback);
     }
+  }
+
+  private boolean isInvalidProgress(Location location, RouteProgress routeProgress) {
+    return location == null || routeProgress == null;
   }
 
   private Callback<DirectionsResponse> directionsResponseCallback = new Callback<DirectionsResponse>() {

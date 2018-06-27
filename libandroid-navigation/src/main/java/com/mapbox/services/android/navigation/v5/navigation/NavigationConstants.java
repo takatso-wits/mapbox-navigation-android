@@ -153,7 +153,7 @@ public final class NavigationConstants {
 
   /**
    * In seconds, how quickly {@link com.mapbox.services.android.navigation.v5.route.FasterRouteDetector}
-   * will tell {@link NavigationEngine} to check
+   * will tell {@link RouteProcessorBackgroundThread} to check
    * for a faster {@link com.mapbox.api.directions.v5.models.DirectionsRoute}.
    *
    * @since 0.9.0
