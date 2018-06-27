@@ -121,7 +121,7 @@ public class NavigationHelperTest extends BaseTest {
       .build();
     MapboxNavigation mapboxNavigation = new MapboxNavigation(mock(Context.class), ACCESS_TOKEN, options,
       mock(NavigationTelemetry.class), mock(LocationEngine.class));
-    NewLocationModel model = NewLocationModel.create(mock(Location.class), mapboxNavigation);
+    NavigationLocationUpdate model = NavigationLocationUpdate.create(mock(Location.class), mapboxNavigation);
 
     boolean userOffRoute = isUserOffRoute(model, mock(RouteProgress.class), mock(OffRouteCallback.class));
 
