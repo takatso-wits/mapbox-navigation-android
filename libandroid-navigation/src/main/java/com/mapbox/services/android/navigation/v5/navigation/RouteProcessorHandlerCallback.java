@@ -4,21 +4,24 @@ import android.location.Location;
 import android.os.Handler;
 import android.os.Message;
 
+import com.mapbox.navigator.NavigationStatus;
+import com.mapbox.navigator.Navigator;
+import com.mapbox.navigator.RouteState;
 import com.mapbox.services.android.navigation.v5.milestone.Milestone;
 import com.mapbox.services.android.navigation.v5.routeprogress.RouteProgress;
 
+import java.util.Date;
 import java.util.List;
 
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationHelper.buildSnappedLocation;
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationHelper.checkMilestones;
-import static com.mapbox.services.android.navigation.v5.navigation.NavigationHelper.isUserOffRoute;
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationHelper.shouldCheckFasterRoute;
 
 class RouteProcessorHandlerCallback implements Handler.Callback {
 
-  private NavigationRouteProcessor routeProcessor;
-  private RouteProcessorBackgroundThread.Listener listener;
-  private Handler responseHandler;
+  private final NavigationRouteProcessor routeProcessor;
+  private final RouteProcessorBackgroundThread.Listener listener;
+  private final Handler responseHandler;
 
   RouteProcessorHandlerCallback(NavigationRouteProcessor routeProcessor, Handler responseHandler,
                                 RouteProcessorBackgroundThread.Listener listener) {
@@ -52,7 +55,7 @@ class RouteProcessorHandlerCallback implements Handler.Callback {
 
     RouteProgress routeProgress = routeProcessor.buildNewRouteProgress(mapboxNavigation, rawLocation);
 
-    final boolean userOffRoute = isUserOffRoute(navigationLocationUpdate, routeProgress, routeProcessor);
+    final boolean userOffRoute = isUserOffRoute(rawLocation, mapboxNavigation.retrieveNavigator());
 
     routeProcessor.checkIncreaseIndex(mapboxNavigation);
 
@@ -69,14 +72,17 @@ class RouteProcessorHandlerCallback implements Handler.Callback {
     final RouteProgress finalRouteProgress = routeProgress;
     routeProcessor.setRouteProgress(finalRouteProgress);
 
-    responseHandler.post(new Runnable() {
-      @Override
-      public void run() {
-        listener.onNewRouteProgress(location, finalRouteProgress);
-        listener.onMilestoneTrigger(milestones, finalRouteProgress);
-        listener.onUserOffRoute(location, userOffRoute);
-        listener.onCheckFasterRoute(location, finalRouteProgress, checkFasterRoute);
-      }
+    responseHandler.post(() -> {
+      listener.onNewRouteProgress(location, finalRouteProgress);
+      listener.onMilestoneTrigger(milestones, finalRouteProgress);
+      listener.onUserOffRoute(location, userOffRoute);
+      listener.onCheckFasterRoute(location, finalRouteProgress, checkFasterRoute);
     });
+  }
+
+  private boolean isUserOffRoute(Location rawLocation, Navigator navigator) {
+    Date rawLocationDate = new Date(rawLocation.getTime());
+    NavigationStatus navigationStatus = navigator.getStatus(rawLocationDate);
+    return navigationStatus.getRouteState() == RouteState.OFFROUTE;
   }
 }

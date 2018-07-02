@@ -226,11 +226,11 @@ public class RerouteActivity extends AppCompatActivity implements OnMapReadyCall
 
   @Override
   public void onMilestoneEvent(RouteProgress routeProgress, String instruction, Milestone milestone) {
-    Timber.d("onMilestoneEvent - Current Instruction: " + instruction);
+    Timber.d("onMilestoneEvent - Current Instruction: %s", instruction);
   }
 
   @Override
-  public void onResponse(Call<DirectionsResponse> call, Response<DirectionsResponse> response) {
+  public void onResponse(@NonNull Call<DirectionsResponse> call, @NonNull Response<DirectionsResponse> response) {
     Timber.d(call.request().url().toString());
     if (response.body() != null) {
       if (!response.body().routes().isEmpty()) {
@@ -240,8 +240,8 @@ public class RerouteActivity extends AppCompatActivity implements OnMapReadyCall
         drawRoute(route);
         // Start mocking the new route
         resetLocationEngine(route);
-        navigation.startNavigation(route);
-        mapboxMap.setOnMapClickListener(this);
+        navigation.startNavigation(call, response);
+        mapboxMap.addOnMapClickListener(this);
         tracking = true;
       }
     }
@@ -249,7 +249,7 @@ public class RerouteActivity extends AppCompatActivity implements OnMapReadyCall
 
   @Override
   public void onFailure(Call<DirectionsResponse> call, Throwable throwable) {
-    Timber.e("Getting directions failed: ", throwable);
+    Timber.e(throwable);
   }
 
   private void getRoute(Point origin, Point destination, Float bearing) {

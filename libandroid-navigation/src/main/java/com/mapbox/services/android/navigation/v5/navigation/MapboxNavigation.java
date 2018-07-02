@@ -12,7 +12,10 @@ import android.support.annotation.Nullable;
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.location.LocationEnginePriority;
 import com.mapbox.android.core.location.LocationEngineProvider;
+import com.mapbox.api.directions.v5.models.DirectionsResponse;
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
+import com.mapbox.navigator.Navigator;
+import com.mapbox.services.android.navigation.v5.NavigationLibraryLoader;
 import com.mapbox.services.android.navigation.v5.milestone.BannerInstructionMilestone;
 import com.mapbox.services.android.navigation.v5.milestone.Milestone;
 import com.mapbox.services.android.navigation.v5.milestone.MilestoneEventListener;
@@ -33,7 +36,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import retrofit2.Call;
 import retrofit2.Callback;
+import retrofit2.Response;
 import timber.log.Timber;
 
 import static com.mapbox.services.android.navigation.v5.navigation.NavigationConstants.BANNER_INSTRUCTION_MILESTONE_ID;
@@ -51,7 +59,9 @@ public class MapboxNavigation implements ServiceConnection {
 
   private NavigationEventDispatcher navigationEventDispatcher;
   private NavigationEngineProvider navigationEngineProvider;
+  private NavigationTelemetry navigationTelemetry = null;
   private NavigationService navigationService;
+  private Navigator navigator;
   private DirectionsRoute directionsRoute;
   private MapboxNavigationOptions options;
   private LocationEngine locationEngine = null;
@@ -59,7 +69,10 @@ public class MapboxNavigation implements ServiceConnection {
   private final String accessToken;
   private final Context context;
   private boolean isBound;
-  private NavigationTelemetry navigationTelemetry = null;
+
+  static {
+    NavigationLibraryLoader.load();
+  }
 
   /**
    * Constructs a new instance of this class using the default options. This should be used over
@@ -137,6 +150,7 @@ public class MapboxNavigation implements ServiceConnection {
     // Initialize event dispatcher and add internal listeners
     navigationEventDispatcher = new NavigationEventDispatcher();
     navigationEngineProvider = new NavigationEngineProvider();
+    navigator = new Navigator();
     initializeDefaultLocationEngine();
     initializeTelemetry();
 
@@ -201,6 +215,7 @@ public class MapboxNavigation implements ServiceConnection {
     Timber.d("MapboxNavigation onDestroy.");
     stopNavigation();
     disableLocationEngine();
+    navigationEngineProvider.clearEngines();
     removeNavigationEventListener(null);
     removeProgressChangeListener(null);
     removeMilestoneEventListener(null);
@@ -359,28 +374,14 @@ public class MapboxNavigation implements ServiceConnection {
    * @since 0.1.0
    */
   public void startNavigation(@NonNull DirectionsRoute directionsRoute) {
-    ValidationUtils.validDirectionsRoute(directionsRoute, options.defaultMilestonesEnabled());
-    this.directionsRoute = directionsRoute;
-    Timber.d("MapboxNavigation startNavigation called.");
-    if (!isBound) {
-      // Begin telemetry session
-      navigationTelemetry.startSession(directionsRoute);
+    startNavigationWith(directionsRoute);
+  }
 
-      // Start the NavigationService
-      Intent intent = getServiceIntent();
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.startForegroundService(intent);
-      } else {
-        context.startService(intent);
-      }
-      context.bindService(intent, this, Context.BIND_AUTO_CREATE);
-
-      // Send navigation event running: true
-      navigationEventDispatcher.onNavigationEvent(true);
-    } else {
-      // Update telemetry directions route
-      navigationTelemetry.updateSessionRoute(directionsRoute);
-    }
+  public void startNavigation(@NonNull Call<DirectionsResponse> call,
+                              @NonNull Response<DirectionsResponse> routeResponse) {
+    DirectionsRoute route = routeResponse.body().routes().get(0);
+    RouteJsonCallback routeJsonCallback = new RouteJsonCallback(navigator, this, route);
+    startNavigationWithJson(call.request().url(), routeJsonCallback);
   }
 
   /**
@@ -404,7 +405,6 @@ public class MapboxNavigation implements ServiceConnection {
       isBound = false;
       navigationService.endNavigation();
       navigationService.stopSelf();
-      navigationEngineProvider.clearEngines();
       navigationEventDispatcher.onNavigationEvent(false);
     }
   }
@@ -787,6 +787,40 @@ public class MapboxNavigation implements ServiceConnection {
 
   NavigationEngineProvider retrieveEngineProvider() {
     return navigationEngineProvider;
+  }
+
+  Navigator retrieveNavigator() {
+    return navigator;
+  }
+
+  void startNavigationWith(@NonNull DirectionsRoute directionsRoute) {
+    ValidationUtils.validDirectionsRoute(directionsRoute, options.defaultMilestonesEnabled());
+    this.directionsRoute = directionsRoute;
+    if (!isBound) {
+      navigationTelemetry.startSession(directionsRoute);
+      startNavigationService();
+      navigationEventDispatcher.onNavigationEvent(true);
+    } else {
+      navigationTelemetry.updateSessionRoute(directionsRoute);
+    }
+  }
+
+  private void startNavigationService() {
+    Intent intent = getServiceIntent();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      context.startForegroundService(intent);
+    } else {
+      context.startService(intent);
+    }
+    context.bindService(intent, this, Context.BIND_AUTO_CREATE);
+  }
+
+  private void startNavigationWithJson(HttpUrl directionsUrl, okhttp3.Callback callback) {
+    final OkHttpClient client = new OkHttpClient();
+    Request request = new Request.Builder()
+      .url(directionsUrl)
+      .build();
+    client.newCall(request).enqueue(callback);
   }
 
   private Intent getServiceIntent() {
